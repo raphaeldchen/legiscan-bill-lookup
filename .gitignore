@@ -1,0 +1,7 @@
+bill_cache.json
+key.json
+venv/
+.env
+__pycache__/
+*.pyc
+.superpowers/
