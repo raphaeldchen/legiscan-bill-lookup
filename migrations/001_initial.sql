@@ -47,3 +47,7 @@ CREATE TABLE IF NOT EXISTS fetch_jobs (
     bills_updated INTEGER DEFAULT 0,
     error_msg     TEXT
 );
+
+-- At most one active fetch job at a time
+CREATE UNIQUE INDEX IF NOT EXISTS one_active_job_idx ON fetch_jobs (status)
+    WHERE status IN ('queued', 'running');

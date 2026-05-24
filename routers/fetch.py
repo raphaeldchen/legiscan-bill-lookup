@@ -2,15 +2,17 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from auth import get_current_user
 import database
 from services.legiscan import fetch_master_list, sync_bills
+from psycopg2 import errors as pg_errors
 
 router = APIRouter(prefix="/api/fetch")
 
 
 def _run_sync(job_id: int) -> None:
     try:
-        stubs = fetch_master_list()
-        sync_bills(stubs, job_id)
+        stubs = fetch_master_list()   # raises on network/API error
+        sync_bills(stubs, job_id)     # handles its own errors internally; does not re-raise
     except Exception as e:
+        # Only reachable if fetch_master_list() raises (sync_bills catches its own errors).
         with database.get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -32,6 +34,7 @@ _JOB_COLS = "id, status, total_bills, bills_fetched, bills_updated, error_msg, s
 
 @router.post("")
 def start_fetch(background_tasks: BackgroundTasks, user=Depends(get_current_user)):
+    # Check for an already-running/queued job
     with database.get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -42,10 +45,22 @@ def start_fetch(background_tasks: BackgroundTasks, user=Depends(get_current_user
     if row:
         return {"job_id": row[0]}
 
-    with database.get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("INSERT INTO fetch_jobs DEFAULT VALUES RETURNING id")
-            job_id = cur.fetchone()[0]
+    # Try to insert a new job; the partial unique index prevents concurrent duplicates
+    try:
+        with database.get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("INSERT INTO fetch_jobs DEFAULT VALUES RETURNING id")
+                job_id = cur.fetchone()[0]
+    except pg_errors.UniqueViolation:
+        # A concurrent request inserted first — return that job
+        with database.get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"SELECT {_JOB_COLS} FROM fetch_jobs "
+                    "WHERE status IN ('queued','running') ORDER BY id DESC LIMIT 1"
+                )
+                row = cur.fetchone()
+        return {"job_id": row[0]}
 
     background_tasks.add_task(_run_sync, job_id)
     return {"job_id": job_id}

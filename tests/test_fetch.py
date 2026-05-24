@@ -45,3 +45,16 @@ def test_fetch_latest_returns_most_recent(auth_client):
 
 def test_fetch_requires_auth(client):
     assert client.post("/api/fetch").status_code == 401
+
+def test_start_fetch_marks_failed_on_legiscan_error(auth_client):
+    """When fetch_master_list() raises, the job should end up status='failed'."""
+    client, _ = auth_client
+    from unittest.mock import patch
+    with patch("routers.fetch.fetch_master_list", side_effect=ValueError("API down")):
+        r = client.post("/api/fetch")
+    assert r.status_code == 200
+    job_id = r.json()["job_id"]
+    # BackgroundTasks run synchronously in TestClient, so the job is already done
+    r = client.get(f"/api/fetch/status/{job_id}")
+    assert r.json()["status"] == "failed"
+    assert "API down" in r.json()["error_msg"]
