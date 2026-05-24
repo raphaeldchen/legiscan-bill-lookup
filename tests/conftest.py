@@ -30,7 +30,7 @@ def clean_tables():
 def client():
     from fastapi.testclient import TestClient
     from main import app
-    return TestClient(app, raise_server_exceptions=True)
+    return TestClient(app, raise_server_exceptions=True, base_url="https://testserver")
 
 @pytest.fixture
 def auth_client(client):
