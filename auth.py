@@ -24,6 +24,11 @@ def create_session(user_id: int) -> str:
             )
     return token
 
+def delete_session(token: str) -> None:
+    with database.get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM sessions WHERE token = %s", (token,))
+
 def get_current_user(request: Request) -> dict:
     token = request.cookies.get("session")
     if not token:

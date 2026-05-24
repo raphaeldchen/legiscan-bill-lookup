@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from dotenv import load_dotenv
 import database
+from routers import auth as auth_router
 
 load_dotenv()
 
@@ -14,3 +15,4 @@ async def lifespan(app: FastAPI):
         database._pool.closeall()
 
 app = FastAPI(lifespan=lifespan)
+app.include_router(auth_router.router)
