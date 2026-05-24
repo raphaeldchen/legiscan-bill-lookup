@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from dotenv import load_dotenv
 import database
 from routers import auth as auth_router
+from routers import categories as categories_router
 
 load_dotenv()
 
@@ -16,3 +17,4 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(auth_router.router)
+app.include_router(categories_router.router)
