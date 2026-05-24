@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS sessions (
     id          SERIAL PRIMARY KEY,
-    user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token       TEXT UNIQUE NOT NULL,
     created_at  TIMESTAMPTZ DEFAULT now(),
     expires_at  TIMESTAMPTZ NOT NULL

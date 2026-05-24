@@ -7,6 +7,8 @@ _pool = None
 
 def init_pool():
     global _pool
+    if _pool is not None:
+        return
     _pool = psycopg2.pool.ThreadedConnectionPool(
         minconn=1,
         maxconn=10,
@@ -15,6 +17,8 @@ def init_pool():
 
 @contextmanager
 def get_conn():
+    if _pool is None:
+        raise RuntimeError("Database pool not initialised — call init_pool() first")
     conn = _pool.getconn()
     try:
         yield conn

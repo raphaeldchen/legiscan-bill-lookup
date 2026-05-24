@@ -1,5 +1,6 @@
 import os
 import pytest
+from pathlib import Path
 
 os.environ.setdefault("DATABASE_URL", "postgresql://localhost/bill_tracker_test")
 os.environ.setdefault("LEGISCAN_API_KEY", "test_key")
@@ -11,7 +12,8 @@ def setup_schema():
     database.init_pool()
     with database.get_conn() as conn:
         with conn.cursor() as cur:
-            with open("migrations/001_initial.sql") as f:
+            sql_path = Path(__file__).parent.parent / "migrations" / "001_initial.sql"
+            with open(sql_path) as f:
                 cur.execute(f.read())
     yield
 

@@ -10,5 +10,7 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     database.init_pool()
     yield
+    if database._pool is not None:
+        database._pool.closeall()
 
 app = FastAPI(lifespan=lifespan)
