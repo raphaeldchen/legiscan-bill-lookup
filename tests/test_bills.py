@@ -83,5 +83,17 @@ def test_export_csv_includes_header(auth_client):
     assert "bill_id" in r.text
     assert "1" in r.text
 
+def test_export_csv_filtered_by_category(auth_client):
+    client, _ = auth_client
+    _insert_bill("1", "A felony bill")
+    _insert_bill("2", "An unrelated bill")
+    r = client.post("/api/categories", json={"name": "Criminal", "keywords": ["felony"]})
+    cat_id = r.json()["id"]
+    resp = client.get(f"/api/bills/export?category_ids={cat_id}")
+    assert resp.status_code == 200
+    assert "text/csv" in resp.headers["content-type"]
+    assert "felony" in resp.text
+    assert "unrelated" not in resp.text
+
 def test_bills_require_auth(client):
     assert client.get("/api/bills").status_code == 401

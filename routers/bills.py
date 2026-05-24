@@ -9,6 +9,9 @@ import database
 
 router = APIRouter(prefix="/api/bills")
 
+# Hard cap on CSV export rows to keep response sizes bounded (~6K IL bills fits well below this)
+_EXPORT_LIMIT = 100_000
+
 _CSV_FIELDS = [
     "bill_id", "number", "title", "description", "status",
     "chamber", "committee", "sponsors", "last_action", "last_action_date",
@@ -50,14 +53,15 @@ def filter_bills_endpoint(
 def export_bills(category_ids: str = Query(""), user=Depends(get_current_user)):
     if category_ids.strip():
         ids = [int(i) for i in category_ids.split(",") if i.strip()]
-        bills = filter_bills(ids, user["id"], page=1, limit=100_000)["bills"]
+        bills = filter_bills(ids, user["id"], page=1, limit=_EXPORT_LIMIT)["bills"]
     else:
         with database.get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """SELECT bill_id, number, title, description, status, chamber,
                        committee, sponsors, last_action, last_action_date
-                       FROM bills ORDER BY last_action_date DESC"""
+                       FROM bills ORDER BY last_action_date DESC LIMIT %s""",
+                    (_EXPORT_LIMIT,),
                 )
                 bills = [_bill_row_to_dict(r) for r in cur.fetchall()]
 
