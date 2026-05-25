@@ -12,9 +12,23 @@ from routers import bills as bills_router
 
 load_dotenv()
 
+def _run_migrations():
+    """Apply all migrations idempotently on startup (safe to re-run — all use IF NOT EXISTS)."""
+    migration_files = [
+        "migrations/001_initial.sql",
+        "migrations/002_trigram_index.sql",
+    ]
+    with database.get_conn() as conn:
+        with conn.cursor() as cur:
+            for path in migration_files:
+                with open(path) as f:
+                    cur.execute(f.read())
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     database.init_pool()
+    _run_migrations()
     yield
     if database._pool is not None:
         database._pool.closeall()

@@ -24,9 +24,11 @@ def _escape_like(kw: str) -> str:
 
 def filter_bills(category_ids: List[int], user_id: int, page: int = 1, limit: int = 50) -> dict:
     """
-    Return bills whose description matches any keyword from the given categories.
+    Return bills whose title or description matches any keyword from the given categories.
     Only considers categories owned by user_id — prevents cross-user data access.
-    Uses PostgreSQL ILIKE ANY ESCAPE '!' for case-insensitive, literal keyword matching.
+    Uses per-condition ILIKE ESCAPE '!' for case-insensitive, literal keyword matching.
+    Note: LegiScan getMasterList stubs often have empty description fields, so title
+    is the primary searchable field; description is checked as a fallback.
     """
     with database.get_conn() as conn:
         with conn.cursor() as cur:
@@ -45,7 +47,13 @@ def filter_bills(category_ids: List[int], user_id: int, page: int = 1, limit: in
 
     # Generate individual ILIKE conditions so we can use ESCAPE '!' per expression.
     # PostgreSQL does not support ESCAPE with ILIKE ANY(array).
-    ilike_clause = " OR ".join(["description ILIKE %s ESCAPE '!'" for _ in patterns])
+    # Search both title and description — LegiScan stubs often have empty description
+    # so title is the primary searchable field.
+    ilike_clause = " OR ".join(
+        ["(title ILIKE %s ESCAPE '!' OR description ILIKE %s ESCAPE '!')" for _ in patterns]
+    )
+    # Each pattern appears twice (once for title, once for description)
+    doubled_patterns = [p for pat in patterns for p in (pat, pat)]
 
     with database.get_conn() as conn:
         with conn.cursor() as cur:
@@ -54,13 +62,13 @@ def filter_bills(category_ids: List[int], user_id: int, page: int = 1, limit: in
                    committee, sponsors, last_action, last_action_date
                    FROM bills WHERE ({ilike_clause})
                    ORDER BY last_action_date DESC LIMIT %s OFFSET %s""",
-                (*patterns, limit, offset),
+                (*doubled_patterns, limit, offset),
             )
             bills = cur.fetchall()
         with conn.cursor() as count_cur:
             count_cur.execute(
                 f"SELECT COUNT(*) FROM bills WHERE ({ilike_clause})",
-                patterns,
+                doubled_patterns,
             )
             total = count_cur.fetchone()[0]
 

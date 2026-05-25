@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 source venv/bin/activate
 pip install -r requirements.txt
 createdb bill_tracker          # one-time
-psql bill_tracker < migrations/001_initial.sql  # one-time
+psql bill_tracker < migrations/001_initial.sql  # one-time (or just start the app — migrations auto-run on startup)
 cp .env.example .env           # fill in DATABASE_URL and LEGISCAN_API_KEY
 uvicorn main:app --reload
 ```
@@ -47,4 +47,4 @@ FastAPI backend + plain HTML/JS frontend. All routes under `/api/*` are JSON end
 1. Push to GitHub
 2. New Web Service → connect repo → Render uses `render.yaml` automatically
 3. Set `LEGISCAN_API_KEY` in Render environment dashboard
-4. After first deploy, run migration once via Render shell: `psql $DATABASE_URL < migrations/001_initial.sql`
+4. Push to GitHub — migrations run automatically on startup (all use `IF NOT EXISTS`)

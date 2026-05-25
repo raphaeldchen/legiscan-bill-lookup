@@ -413,19 +413,32 @@ function toggleBillsPill(id) {
 
 async function loadBillsPage(page) {
   _billsState.page = page;
+
+  // Show loading feedback immediately so the button doesn't feel frozen
+  const filterBtn = document.getElementById('filter-btn');
+  const clearBtn  = document.getElementById('clear-btn');
+  const countEl   = document.getElementById('bill-count');
+  if (filterBtn) { filterBtn.disabled = true; filterBtn.textContent = 'Filtering…'; }
+  if (clearBtn)  clearBtn.disabled = true;
+  if (countEl)   countEl.textContent = 'Loading…';
+
   let r;
   if (_billsState.selectedIds.length) {
     r = await api('POST', '/bills/filter?page=' + page, { category_ids: _billsState.selectedIds });
   } else {
     r = await api('GET', '/bills?page=' + page);
   }
+
+  // Restore buttons regardless of success/failure
+  if (filterBtn) { filterBtn.disabled = false; filterBtn.textContent = 'Filter Bills'; }
+  if (clearBtn)  clearBtn.disabled = false;
+
   if (!r) return;
   const data = await r.json();
   _billsState.total = data.total;
   renderBillsTable(data.bills);
   renderBillsPagination(data.total, page);
-  const count = document.getElementById('bill-count');
-  if (count) count.textContent = 'Showing ' + data.bills.length + ' of ' + data.total.toLocaleString() + ' bills';
+  if (countEl) countEl.textContent = 'Showing ' + data.bills.length + ' of ' + data.total.toLocaleString() + ' bills';
 }
 
 function renderBillsTable(bills) {
