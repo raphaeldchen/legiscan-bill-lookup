@@ -92,3 +92,13 @@ input:focus { outline: none; border-color: #3b82f6; }
 .section-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; }
 .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
 .bill-count { font-size: 13px; color: #4a5568; }
+
+#wake-banner {
+  background: #1a1f2e;
+  color: #718096;
+  font-size: 12px;
+  text-align: center;
+  padding: 9px 16px;
+  border-bottom: 1px solid #2d3748;
+  letter-spacing: .01em;
+}

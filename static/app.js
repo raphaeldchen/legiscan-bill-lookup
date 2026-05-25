@@ -20,6 +20,18 @@ async function api(method, path, body) {
   return r;
 }
 
+// ── Loading helper ─────────────────────────────────────────────────────────
+// Disables btn + shows loadingText while fn() runs; always restores on finish.
+async function withLoading(btn, loadingText, fn) {
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = loadingText;
+  try { await fn(); } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
+}
+
 // ── Navigation ─────────────────────────────────────────────────────────────
 function navigate(path) {
   history.pushState({}, '', path);
@@ -84,7 +96,21 @@ async function logout() {
 
 // ── Bootstrap ──────────────────────────────────────────────────────────────
 async function init() {
+  // Render free tier spins down after ~15 min of inactivity; first request
+  // can take 30-60 s. Show a banner after 1.5 s so the user isn't left staring
+  // at a blank page with no explanation.
+  let wakeBanner = null;
+  const wakeTimer = setTimeout(() => {
+    wakeBanner = document.createElement('div');
+    wakeBanner.id = 'wake-banner';
+    wakeBanner.textContent = '⏳ Server is waking up — this takes ~30 s on first load after idle…';
+    document.body.insertBefore(wakeBanner, document.body.firstChild);
+  }, 1500);
+
   const r = await fetch('/api/auth/me');
+  clearTimeout(wakeTimer);
+  if (wakeBanner) wakeBanner.remove();
+
   if (r.ok) currentUser = await r.json();
   render();
 }
@@ -108,7 +134,7 @@ function renderLogin() {
   btn.className = 'btn btn-primary';
   btn.style.width = '100%';
   btn.textContent = 'Sign in';
-  btn.addEventListener('click', doLogin);
+  btn.addEventListener('click', () => withLoading(btn, 'Signing in…', doLogin));
   card.appendChild(btn);
 
   const err = document.createElement('div');
@@ -163,7 +189,7 @@ function renderSignup() {
   btn.className = 'btn btn-primary';
   btn.style.width = '100%';
   btn.textContent = 'Create account';
-  btn.addEventListener('click', doSignup);
+  btn.addEventListener('click', () => withLoading(btn, 'Creating account…', doSignup));
   card.appendChild(btn);
 
   const err = document.createElement('div');
@@ -286,9 +312,12 @@ async function checkActiveFetch() {
 
 async function startFetch() {
   const btn = document.getElementById('fetch-btn');
-  if (btn) btn.disabled = true;
+  if (btn) { btn.disabled = true; btn.textContent = '↻ Fetching…'; }
   const r = await api('POST', '/fetch');
-  if (!r) return;
+  if (!r) {
+    if (btn) { btn.disabled = false; btn.textContent = '↻ Fetch Bills'; }
+    return;
+  }
   const data = await r.json();
   startPolling(data.job_id);
 }
@@ -314,7 +343,7 @@ function startPolling(jobId) {
     if (job.status === 'done' || job.status === 'failed') {
       clearInterval(_pollInterval);
       const btn = document.getElementById('fetch-btn');
-      if (btn) btn.disabled = false;
+      if (btn) { btn.disabled = false; btn.textContent = '↻ Fetch Bills'; }
       if (bar) bar.style.width = job.status === 'done' ? '100%' : bar.style.width;
       if (statusText) {
         statusText.textContent = job.status === 'done'
@@ -545,7 +574,7 @@ function renderCatList() {
   newBtn.className = 'btn btn-ghost';
   newBtn.style = 'width:100%;margin-top:8px;font-size:13px';
   newBtn.textContent = '+ New Category';
-  newBtn.addEventListener('click', createCat);
+  newBtn.addEventListener('click', () => withLoading(newBtn, 'Creating…', createCat));
   list.appendChild(newBtn);
 }
 
@@ -571,7 +600,10 @@ function renderCatEditor(cat) {
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'btn btn-danger';
   deleteBtn.textContent = 'Delete';
-  deleteBtn.addEventListener('click', () => deleteCat(cat.id));
+  deleteBtn.addEventListener('click', async () => {
+    if (!confirm('Delete this category?')) return;
+    await withLoading(deleteBtn, 'Deleting…', () => deleteCat(cat.id));
+  });
   header.appendChild(nameInput);
   header.appendChild(deleteBtn);
   editor.appendChild(header);
@@ -619,7 +651,7 @@ function renderCatEditor(cat) {
   const saveBtn = document.createElement('button');
   saveBtn.className = 'btn btn-primary';
   saveBtn.textContent = 'Save Category';
-  saveBtn.addEventListener('click', () => saveCat(cat));
+  saveBtn.addEventListener('click', () => withLoading(saveBtn, 'Saving…', () => saveCat(cat)));
   const saveMsg = document.createElement('span');
   saveMsg.id = 'save-msg';
   saveMsg.style = 'font-size:13px;color:#10b981;margin-left:12px';
@@ -658,7 +690,6 @@ async function saveCat(cat) {
 }
 
 async function deleteCat(id) {
-  if (!confirm('Delete this category?')) return;
   const r = await api('DELETE', '/categories/' + id);
   if (!r || !r.ok) return;
   _catsState.categories = _catsState.categories.filter(c => c.id !== id);
