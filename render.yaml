@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: bill-tracker
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bill-tracker-db
+          property: connectionString
+      - key: LEGISCAN_API_KEY
+        sync: false   # set manually in Render dashboard
+
+databases:
+  - name: bill-tracker-db
+    databaseName: bill_tracker
+    plan: free
