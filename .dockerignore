@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+bill_cache.json
+key.json
+*.egg-info
+.git
+.gitignore
+tests/
+docs/
+render.yaml
+Procfile
+pytest.ini

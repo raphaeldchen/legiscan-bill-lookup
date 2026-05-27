@@ -103,7 +103,7 @@ async function init() {
   const wakeTimer = setTimeout(() => {
     wakeBanner = document.createElement('div');
     wakeBanner.id = 'wake-banner';
-    wakeBanner.textContent = '⏳ Server is waking up — this takes ~30 s on first load after idle…';
+    wakeBanner.textContent = '⏳ Connecting to server…';
     document.body.insertBefore(wakeBanner, document.body.firstChild);
   }, 1500);
 
